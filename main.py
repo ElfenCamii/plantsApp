@@ -1,5 +1,5 @@
 import os
-import data # Importamos tu archivo data.py
+import data
 
 # Inicializamos la base de datos al arrancar
 data.init_db()
@@ -22,22 +22,68 @@ while True:
     6. Salir
 ''')
     try:
-        user_action = int(input('\n¿Qué desea hacer?: '))
+        user_action = int(input('¿Qué desea hacer?: '))
 
         if user_action == 1:
-            # Aquí es donde conectamos el input del usuario con la DB
             nombre = input('Nombre de la planta: ')
             especie = input('Especie: ')
+            tutor = input('Tiene tutor: ').lower()
+            if tutor == 'si':
+                frecuencia_tutor = int(input('Frecuencia de riego del tutor (días): '))
+            else:
+                frecuencia_tutor = 0
             frecuencia = int(input('Frecuencia de riego (días): '))
             
-            data.insert_plant(nombre, especie, frecuencia)
+            data.insert_plant(nombre, especie, tutor, frecuencia_tutor, frecuencia)
             print(f'¡{nombre} agregada con éxito!')
+
+        elif user_action == 2:
+            print('''
+\nQue decea actualizar
+                  
+    1. Nombre de una planta
+    2. Especie de una planta
+    3. Si tiene o no tutor
+    4. Frecuencia de riego del tutor
+    5. Frecuencia de riego de la maceta
+''')
+            user_update = int(input('¿Qué desea hacer?:'))
+            if user_update == 1: # Nombre
+                actual_nom = input('Nombre actual: ')
+                actual_esp = input('Especie actual: ') # Para diferenciar
+                nuevo_nom = input('Nuevo nombre: ')
+                
+                data.updatePlantField(actual_nom, actual_esp, 'name', nuevo_nom)
+                print(f'\n¡Nombre actualizado con éxito!')
+
+            elif user_update == 2: # Especie
+                actual_nom = input('Nombre de la planta: ')
+                actual_esp = input('Especie actual: ')
+                nueva_esp = input('Nueva especie: ')
+                
+                data.updatePlantField(actual_nom, actual_esp, 'species', nueva_esp)
+                print(f'\n¡Especie actualizada con éxito!')
 
         elif user_action == 3:
             plantas = data.get_all_plants()
             print('\n--- Inventario Actual ---')
             for p in plantas:
-                print(f"Nombre: {p[0]} | Especie: {p[1]} | Riego cada: {p[2]} días")
+                print(f"Nombre: {p[0]} | Especie: {p[1]} | Tiene tutor: {p[2]} | Riego del tutor: {p[3]} días | Riego maceta: {p[4]} días")
+
+        elif user_action == 5:
+            criterio = input('Escribe el nombre de la planta a buscar: ')
+    
+            # Llamamos a la función pasando el criterio y guardamos el resultado
+            resultados = data.search_plants(criterio)
+    
+            print('\n--- Resultados de búsqueda ---')
+    
+            if len(resultados) > 0:
+                for p in resultados:
+                    # p[0] es nombre, p[1] es especie, p[2] es frecuencia
+                    print(f"-> Encontrada: {p[0]} ({p[1]}) - Tiene tutor {p[2]} - Riego del tutor cada {p[3]} días - Riego maceta cada {p[4]}")
+            else:
+                print(f'No se encontraron plantas que coincidan con "{criterio}"')
 
         elif user_action == 6:
             print("Saliendo...")

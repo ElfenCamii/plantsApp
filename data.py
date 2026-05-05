@@ -10,6 +10,8 @@ def init_db():
         '''CREATE TABLE IF NOT EXISTS plantas(
             name TEXT,
             species TEXT, 
+            plant_tutor TEXT,
+            irri_tutor INTEGER,
             irri_frequency INTEGER,
             last_watered TEXT
         )'''
@@ -17,11 +19,14 @@ def init_db():
     conn.commit()
     conn.close()
 
-def insert_plant(name, species, irri_frequency):
+def insert_plant(nombre, especie, tutor, frecuencia_tutor, frecuencia):
     conn = sql.connect(DB_NAME)
     cursor = conn.cursor()
-    instruction = 'INSERT INTO plantas (name, species, irri_frequency) VALUES (?, ?, ?)'
-    cursor.execute(instruction, (name, species, irri_frequency))
+    instruction = '''INSERT INTO plantas 
+                     (name, species, plant_tutor, irri_tutor, irri_frequency) 
+                     VALUES (?, ?, ?, ?, ?)'''
+    
+    cursor.execute(instruction, (nombre, especie, tutor, frecuencia_tutor, frecuencia))
     conn.commit()
     conn.close()
 
@@ -32,3 +37,21 @@ def get_all_plants():
     datos = cursor.fetchall()
     conn.close()
     return datos
+
+def search_plants(name_to_search):
+    conn = sql.connect(DB_NAME)
+    cursor = conn.cursor()
+    term = f'{name_to_search}%'
+    instruction = f'SELECT * FROM plantas WHERE name like ?'
+    cursor.execute(instruction, (term,))
+    datos = cursor.fetchall()
+    conn.close()
+    return datos
+
+def updatePlantField(plant_name, plant_species, column_name, new_value):
+    conn = sql.connect(DB_NAME)
+    cursor = conn.cursor()
+    instruction = f'UPDATE plantas SET {column_name}=? WHERE name=? AND species=?'
+    cursor.execute(instruction, (new_value, plant_name, plant_species))
+    conn.commit()
+    conn.close()
