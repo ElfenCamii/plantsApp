@@ -55,3 +55,14 @@ def updatePlantField(plant_name, plant_species, column_name, new_value):
     cursor.execute(instruction, (new_value, plant_name, plant_species))
     conn.commit()
     conn.close()
+
+def deletRowPlants(plant_name, plant_species):
+    conn = sql.connect(DB_NAME)
+    cursor = conn.cursor()
+    # Corregido: "AND" en lugar de "AMD"
+    instruction = 'DELETE FROM plantas WHERE name=? AND species=?'
+    cursor.execute(instruction, (plant_name, plant_species))
+    filas_borradas = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return filas_borradas 

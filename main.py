@@ -94,6 +94,17 @@ while True:
             for p in plantas:
                 print(f"Nombre: {p[0]} | Especie: {p[1]} | Tiene tutor: {p[2]} | Riego del tutor: {p[3]} días | Riego maceta: {p[4]} días")
 
+        elif user_action == 4:
+            nom_eliminar = input('Nombre de la planta a eliminar: ')
+            esp_eliminar = input('Especie de la planta a eliminar: ')
+            filas = data.deletRowPlants(nom_eliminar, esp_eliminar)
+            print('\n--- Resultados de la eliminación ---')
+            # 3. VERIFICAR si se borró algo
+            if filas > 0:
+                print(f'¡Éxito! Se eliminaron {filas} registro(s) de "{nom_eliminar} ({esp_eliminar})" ')
+            else:
+                print(f'No se encontró ninguna planta que se llame "{nom_eliminar}" y sea "{esp_eliminar}"')
+
         elif user_action == 5:
             criterio = input('Escribe el nombre de la planta a buscar: ')
     
