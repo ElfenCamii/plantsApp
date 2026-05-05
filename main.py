@@ -1,6 +1,6 @@
 import os
 import data
-import funtions
+import functions
 
 # Inicializamos la base de datos al arrancar
 data.init_db()
@@ -32,10 +32,10 @@ while True:
             tutor = input('Tiene tutor: ').lower()
             frecuencia = int(input('Frecuencia de riego maceta (días): '))
             frecuencia_tutor = 0
-            funtions.add_new_plant(nombre, especie, tutor, frecuencia_tutor, frecuencia)
+            functions.add_new_plant(nombre, especie, tutor, frecuencia_tutor, frecuencia)
 
         elif user_action == 2:
-            funtions.update_plant_logic()
+            functions.update_plant_logic()
 
         elif user_action == 3:
             plantas = data.get_all_plants()
@@ -46,11 +46,11 @@ while True:
         elif user_action == 4:
             nom_eliminar = input('Nombre de la planta a eliminar: ')
             esp_eliminar = input('Especie de la planta a eliminar: ')
-            funtions.del_plants(nom_eliminar, esp_eliminar)
+            functions.del_plants(nom_eliminar, esp_eliminar)
 
         elif user_action == 5:
             criterio = input('Escribe el nombre de la planta a buscar: ')
-            funtions.search_plant(criterio)
+            functions.search_plant(criterio)
 
         elif user_action == 6:
             print("Saliendo...")
