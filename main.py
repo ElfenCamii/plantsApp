@@ -47,7 +47,7 @@ while True:
     4. Frecuencia de riego del tutor
     5. Frecuencia de riego de la maceta
 ''')
-            user_update = int(input('¿Qué desea hacer?:'))
+            user_update = int(input('¿Qué desea hacer?: '))
             if user_update == 1: # Nombre
                 actual_nom = input('Nombre actual: ')
                 actual_esp = input('Especie actual: ') # Para diferenciar
@@ -63,6 +63,30 @@ while True:
                 
                 data.updatePlantField(actual_nom, actual_esp, 'species', nueva_esp)
                 print(f'\n¡Especie actualizada con éxito!')
+            
+            elif user_update == 3: # Tutor
+                actual_nom = input('Nombre de la planta: ')
+                actual_esp = input('Especie actual: ')
+                nueva_tutor = input('Actualización del tutor (si/no): ')
+                
+                data.updatePlantField(actual_nom, actual_esp, 'plant_tutor', nueva_tutor)
+                print(f'\n¡Tutor actualizado con éxito!')
+
+            elif user_update == 4: # Frecuencia de riego del tutor
+                actual_nom = input('Nombre de la planta: ')
+                actual_esp = input('Especie actual: ')
+                frec_tutor = input('Frecuencia de riego del tutor: ')
+                
+                data.updatePlantField(actual_nom, actual_esp, 'irri_tutor', frec_tutor)
+                print(f'\n¡Frecuencia de riego tutor actualizada con éxito!')
+            
+            elif user_update == 5: # Frecuencia de riego del maceta
+                actual_nom = input('Nombre de la planta: ')
+                actual_esp = input('Especie actual: ')
+                frec_maceta = input('Frecuencia de riego maceta: ')
+                
+                data.updatePlantField(actual_nom, actual_esp, 'irri_frequency', frec_maceta)
+                print(f'\n¡Frecuencia de riego maceta actualizada con éxito!')
 
         elif user_action == 3:
             plantas = data.get_all_plants()
