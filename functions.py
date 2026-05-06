@@ -1,4 +1,6 @@
 import data
+from datetime import datetime, date
+
 
 def add_new_plant(nombre, especie, tutor, frecuencia_tutor, frecuencia):
     
@@ -10,6 +12,7 @@ def add_new_plant(nombre, especie, tutor, frecuencia_tutor, frecuencia):
     data.insert_plant(nombre, especie, tutor, frecuencia_tutor, frecuencia)
     print(f'¡{nombre} agregada con éxito!')
 
+
 def del_plants(nom_eliminar, esp_eliminar):
     filas = data.deletRowPlants(nom_eliminar, esp_eliminar)
     print('\n--- Resultados de la eliminación ---')
@@ -18,6 +21,7 @@ def del_plants(nom_eliminar, esp_eliminar):
         print(f'¡Éxito! Se eliminaron {filas} registro(s) de "{nom_eliminar} ({esp_eliminar})" ')
     else:
         print(f'No se encontró ninguna planta que se llame "{nom_eliminar}" y sea "{esp_eliminar}"')
+
 
 def search_plant(criterio):
     resultados = data.search_plants(criterio)
@@ -30,6 +34,7 @@ def search_plant(criterio):
             print(f"-> Encontrada: {p[0]} ({p[1]}) - Tiene tutor {p[2]} - Riego del tutor cada {p[3]} días - Riego maceta cada {p[4]}")
     else:
         print(f'No se encontraron plantas que coincidan con "{criterio}"')
+        
 
 def update_plant_logic():
     print('''
@@ -68,3 +73,25 @@ def update_plant_logic():
 
     except ValueError:
         print('¡Error: Ingresa un número válido!')
+
+
+def obtener_estado_riego(fecha_str, frecuencia_dias):
+    """
+    Retorna un entero de 0 a 100 representando la 'vida'
+    """
+    if not fecha_str or frecuencia_dias == 0:
+        return 100 # Si no necesita riego (tutor), lo dejamos al 100%
+
+    # 1. Convertir texto de DB a objeto fecha
+    ultimo_riego = datetime.strptime(fecha_str, '%Y-%m-%d').date()
+    hoy = date.today()
+    
+    # 2. Calcular diferencia
+    dias_pasados = (hoy - ultimo_riego).days
+    
+    # 3. Calcular porcentaje
+    # Si pasaron 3 días y la frecuencia es 10: 1 - (3/10) = 0.7 (70%)
+    porcentaje = 100 - (dias_pasados / frecuencia_dias * 100)
+    
+    # Limitar entre 0 y 100
+    return max(0, min(100, round(porcentaje)))
