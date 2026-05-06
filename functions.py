@@ -95,3 +95,39 @@ def obtener_estado_riego(fecha_str, frecuencia_dias):
     
     # Limitar entre 0 y 100
     return max(0, min(100, round(porcentaje)))
+
+
+def generar_semaforo(porcentaje):
+    """Auxiliar para generar los emojis según el porcentaje"""
+    if porcentaje <= 15: return '🔴🔴🔴🔴'
+    elif porcentaje <= 20: return '🟡🔴🔴🔴'
+    elif porcentaje <= 30: return '🟡🟡🔴🔴'
+    elif porcentaje <= 50: return '🟡🟡🟡🔴'
+    elif porcentaje >= 90: return '🟢🟢🟢🟢'
+    elif porcentaje >= 80: return '🟢🟢🟢🟡'
+    elif porcentaje >= 70: return '🟢🟢🟡🟡'
+    elif porcentaje >= 60: return '🟢🟡🟡🟡'
+    else: return '🟡🟡🟡🟡'
+
+
+def show_inventory_logic(plantas):
+    print('\n' + '='*112)
+    header = f"{'PLANTA':<15} | {'ESPECIE':<18} | {'ESTADO MACETA':<17} | {'RIEGO MACETA':<14} | {'ESTADO TUTOR':<17} | {'RIEGO TUTOR'}"
+    print(header)
+    print('-'*112)
+
+    for p in plantas:
+        # p[5]=last_watered, p[4]=irri_freq, p[6]=last_tutor, p[3]=tutor_freq
+        porcen_m = obtener_estado_riego(p[5], p[4])
+        porcen_t = obtener_estado_riego(p[6], p[3])
+        
+        # Barras visuales
+        barra_m = f'[{"#" * int(porcen_m / 10):<10}]'
+        barra_t = f'[{"#" * int(porcen_t / 10):<10}]'
+        
+        # Semáforos
+        alerta_m = generar_semaforo(porcen_m)
+        alerta_t = generar_semaforo(porcen_t)
+
+        print(f'{p[0]:<15} | {p[1]:<18} | {barra_m} {porcen_m:>3}% | {alerta_m:<10} | {barra_t} {porcen_t:>2}% | {alerta_t}')
+    print('='*112)
