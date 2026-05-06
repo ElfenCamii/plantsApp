@@ -1,6 +1,9 @@
 import sqlite3 as sql
+from datetime import datetime, date
+
 
 DB_NAME = 'plantas.db'
+
 
 def init_db():
     """Crea la tabla si no existe al iniciar la app"""
@@ -19,16 +22,23 @@ def init_db():
     conn.commit()
     conn.close()
 
+
 def insert_plant(nombre, especie, tutor, frecuencia_tutor, frecuencia):
     conn = sql.connect(DB_NAME)
     cursor = conn.cursor()
-    instruction = '''INSERT INTO plantas 
-                     (name, species, plant_tutor, irri_tutor, irri_frequency) 
-                     VALUES (?, ?, ?, ?, ?)'''
     
-    cursor.execute(instruction, (nombre, especie, tutor, frecuencia_tutor, frecuencia))
+    # Obtenemos la fecha de hoy en formato YYYY-MM-DD
+    hoy = date.today().isoformat() 
+    
+    instruction = '''INSERT INTO plantas 
+                     (name, species, plant_tutor, irri_tutor, irri_frequency, last_watered, last_tutor_watered) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?)'''
+    
+    # Pasamos 'hoy' para ambas fechas de riego iniciales
+    cursor.execute(instruction, (nombre, especie, tutor, frecuencia_tutor, frecuencia, hoy, hoy))
     conn.commit()
     conn.close()
+
 
 def get_all_plants():
     conn = sql.connect(DB_NAME)
@@ -37,6 +47,7 @@ def get_all_plants():
     datos = cursor.fetchall()
     conn.close()
     return datos
+
 
 def search_plants(name_to_search):
     conn = sql.connect(DB_NAME)
@@ -48,6 +59,7 @@ def search_plants(name_to_search):
     conn.close()
     return datos
 
+
 def updatePlantField(plant_name, plant_species, column_name, new_value):
     conn = sql.connect(DB_NAME)
     cursor = conn.cursor()
@@ -55,6 +67,7 @@ def updatePlantField(plant_name, plant_species, column_name, new_value):
     cursor.execute(instruction, (new_value, plant_name, plant_species))
     conn.commit()
     conn.close()
+
 
 def deletRowPlants(plant_name, plant_species):
     conn = sql.connect(DB_NAME)
@@ -66,3 +79,51 @@ def deletRowPlants(plant_name, plant_species):
     conn.commit()
     conn.close()
     return filas_borradas 
+
+
+
+def calcular_barra_vida(fecha_ultimo_riego, frecuencia):
+    if not fecha_ultimo_riego: # Por si la planta es nueva y no se ha regado
+        return 0, "NUNCA REGADA"
+
+    # 1. Convertir el texto de la DB a una fecha real
+    ultimo_riego = datetime.strptime(fecha_ultimo_riego, '%Y-%m-%d').date()
+    hoy = datetime.now().date()
+
+    # 2. Calcular cuántos días han pasado
+    dias_pasados = (hoy - ultimo_riego).days
+    
+    # 3. Calcular el porcentaje (la "vida")
+    # Si han pasado 7 días de una frecuencia de 7, la vida es 0%
+    porcentaje = 100 - (dias_pasados / frecuencia * 100)
+    
+    # Asegurarnos de que no devuelva números negativos
+    return max(0, round(porcentaje))
+
+
+def reset_watering(nombre, especie, es_tutor=False):
+    conn = sql.connect(DB_NAME)
+    cursor = conn.cursor()
+    hoy = date.today().isoformat()
+    
+    columna = "last_tutor_watered" if es_tutor else "last_watered"
+    
+    instruction = f'UPDATE plantas SET {columna}=? WHERE name=? AND species=?'
+    cursor.execute(instruction, (hoy, nombre, especie))
+    
+    conn.commit()
+    conn.close()
+
+
+# def add_new_column():
+#     conn = sql.connect(DB_NAME)
+#     cursor = conn.cursor()
+#     try:
+#         # Agregamos la columna para el último riego del tutor
+#         cursor.execute('ALTER TABLE plantas ADD COLUMN last_tutor_watered TEXT')
+#         print("Columna agregada con éxito.")
+#     except sql.OperationalError:
+#         # Si la columna ya existe, esto evita que el programa falle
+#         print("La columna ya existe.")
+#     conn.commit()
+#     conn.close()
