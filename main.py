@@ -77,6 +77,13 @@ while True:
             print("Saliendo...")
             break
 
+
+        elif user_action == 28:
+            nom = input('nombre planta: ')
+            esp = input('especie planta: ')
+            dias = int(input('dias hacia atras: '))
+            data.simular_paso_del_tiempo(dias, nom, esp)
+
     except ValueError:
         print('El valor ingresado no es un número!')
         print('Intentelo de nuevo')
