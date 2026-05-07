@@ -1,5 +1,5 @@
 import sqlite3 as sql
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 
 DB_NAME = 'plantas.db'
@@ -127,3 +127,18 @@ def reset_watering(nombre, especie, es_tutor=False):
 #         print("La columna ya existe.")
 #     conn.commit()
 #     conn.close()
+
+
+def simular_paso_del_tiempo(dias_atras, nombre_planta, especie_planta):
+    conn = sql.connect('plantas.db')
+    cursor = conn.cursor()
+    
+    # Calculamos una fecha del pasado
+    fecha_falsa = (date.today() - timedelta(days=dias_atras)).isoformat()
+    
+    # Actualizamos la planta para que parezca que se regó hace X días
+    cursor.execute('UPDATE plantas SET last_watered=? WHERE name=? AND species=?', (fecha_falsa, nombre_planta, especie_planta))
+    
+    conn.commit()
+    conn.close()
+    print(f"Simulación: {nombre_planta} {especie_planta} ahora aparece como regada hace {dias_atras} días.")
