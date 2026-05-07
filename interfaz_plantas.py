@@ -52,83 +52,93 @@ class AppPlantas(MDApp):
         plantas = data.get_all_plants()
 
         for p in plantas:
-            # Lógica de datos (Limpieza de strings para el tutor)
             tutor_raw = str(p[2]).lower().strip()
             tiene_tutor = tutor_raw in ["si", "sí", "s"]
             porcentaje_maceta = functions.obtener_estado_riego(p[5], p[4])
             
-            # 3. La Tarjeta (Altura fija de 320 para iconos de 100)
+            # 1. LA TARJETA CUADRADA DINÁMICA
             tarjeta = MDCard(
                 orientation='vertical',
-                padding=[dp(15), dp(10), dp(15), dp(15)],
-                size_hint_y=None,
-                height=dp(320), 
+                padding=dp(10),
+                size_hint=(1, None), # Ocupa todo el ancho de la columna
+                # AQUÍ ESTÁ EL TRUCO: La altura será igual al ancho
+                height=self.contenedor_grid.width / 2 - dp(20), 
                 radius=[dp(20)],
                 elevation=2,
                 ripple_behavior=True 
             )
+            
+            # Para asegurar que se actualice si cambias el tamaño de ventana
+            tarjeta.bind(width=lambda instance, value: setattr(instance, 'height', value))
 
-            # 4. Icono Personalizado (Cargando tus PNGs)
+            # 2. TÍTULO Y ESPECIE (Compacto)
+            titulo_especie = MDLabel(
+                text=f"[b]{p[0]}[/b]\n[size=10]{p[1]}[/size]",
+                markup=True,
+                halign="center",
+                adaptive_height=True,
+                line_height=0.9
+            )
+
+            # 3. ICONO (Un poco más pequeño para que quepa en el cuadrado)
             ruta_imagen = "con_tutor.png" if tiene_tutor else "sin_tutor.png"
             imagen_planta = Image(
                 source=ruta_imagen,
                 size_hint=(None, None),
-                size=(dp(100), dp(100)),
-                pos_hint={"center_x": 0.5},
-                allow_stretch=True
+                size=(dp(80), dp(80)), # Bajamos a 80 para ganar espacio
+                pos_hint={"center_x": 0.5}
             )
 
-            # Título (Nombre en negrita y especie pequeña)
-            titulo = MDLabel(
-                text=f"[b]{p[0]}[/b]\n[size=12]{p[1]}[/size]",
-                markup=True,
-                halign="center",
-                adaptive_height=True
-            )
-            
-            # --- SECCIÓN MACETA (Fila Horizontal para el %) ---
-            fila_maceta = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(20))
-            fila_maceta.add_widget(MDLabel(text="Maceta", font_style="Caption", theme_text_color="Secondary"))
-            fila_maceta.add_widget(MDLabel(text=f"{porcentaje_maceta}%", font_style="Caption", halign="right", theme_text_color="Primary"))
-
+            # --- SECCIÓN MACETA ---
             barra_maceta = MDProgressBar(
                 value=porcentaje_maceta,
                 color=self.theme_cls.primary_color,
-                size_hint_x=1,
-                height=dp(8),
+                size_hint_x=0.9,
+                pos_hint={"center_x": 0.5},
+                height=dp(6),
                 size_hint_y=None
             )
-
-            # Agregamos widgets a la tarjeta en orden
-            tarjeta.add_widget(imagen_planta)
-            tarjeta.add_widget(MDLabel(size_hint_y=None, height=dp(5)))
-            tarjeta.add_widget(titulo)
-            tarjeta.add_widget(MDLabel(size_hint_y=None, height=dp(10)))
-            tarjeta.add_widget(fila_maceta)
-            tarjeta.add_widget(barra_maceta)
+            fila_maceta = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(14))
+            fila_maceta.add_widget(MDLabel(text="M", font_style="Caption", theme_text_color="Secondary", size_hint_x=0.2))
+            fila_maceta.add_widget(MDLabel(text=f"{porcentaje_maceta}%", font_style="Caption", halign="right"))
 
             # --- SECCIÓN TUTOR ---
             if tiene_tutor:
                 porcen_tutor = functions.obtener_estado_riego(p[6], p[3])
-                
-                fila_tutor = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(20))
-                fila_tutor.add_widget(MDLabel(text="Tutor", font_style="Caption", theme_text_color="Secondary"))
-                fila_tutor.add_widget(MDLabel(text=f"{porcen_tutor}%", font_style="Caption", halign="right", theme_text_color="Primary"))
-
-                barra_tutor = MDProgressBar(
-                    value=porcen_tutor,
-                    color=(0.6, 0.4, 0.2, 1), # Café
-                    size_hint_x=1,
-                    height=dp(8),
-                    size_hint_y=None
-                )
-                
-                tarjeta.add_widget(MDLabel(size_hint_y=None, height=dp(10)))
-                tarjeta.add_widget(fila_tutor)
-                tarjeta.add_widget(barra_tutor)
+                val_tutor = porcen_tutor
+                txt_tutor = f"{porcen_tutor}%"
+                col_tutor = (0.6, 0.4, 0.2, 1)
             else:
-                # Si no hay tutor, añadimos un espacio flexible para mantener la alineación
-                tarjeta.add_widget(MDLabel(text="", size_hint_y=1)) 
+                val_tutor = 0
+                txt_tutor = "No"
+                col_tutor = (0.8, 0.8, 0.8, 1)
+
+            barra_tutor = MDProgressBar(
+                value=val_tutor,
+                color=col_tutor,
+                size_hint_x=0.9,
+                pos_hint={"center_x": 0.5},
+                height=dp(6),
+                size_hint_y=None
+            )
+            fila_tutor = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(14))
+            fila_tutor.add_widget(MDLabel(text="T", font_style="Caption", theme_text_color="Secondary", size_hint_x=0.2))
+            fila_tutor.add_widget(MDLabel(text=txt_tutor, font_style="Caption", halign="right"))
+
+            # 4. CONSTRUCCIÓN
+            tarjeta.add_widget(titulo_especie)
+            tarjeta.add_widget(imagen_planta)
+            
+            # Espaciador automático
+            tarjeta.add_widget(MDLabel(text="", size_hint_y=1))
+            
+            tarjeta.add_widget(barra_maceta)
+            tarjeta.add_widget(fila_maceta)
+            
+            tarjeta.add_widget(MDLabel(size_hint_y=None, height=dp(4))) # Espacio mínimo
+            
+            tarjeta.add_widget(barra_tutor)
+            tarjeta.add_widget(fila_tutor)
 
             self.contenedor_grid.add_widget(tarjeta)
 
