@@ -134,3 +134,11 @@ def simular_paso_del_tiempo(dias_atras, nombre_planta, especie_planta):
     conn.commit()
     conn.close()
     print(f"Simulación: {nombre_planta} {especie_planta} ahora aparece como regada hace {dias_atras} días.")
+
+
+def delete_plant(plant_id):
+    conn = sql.connect('plantas.db')
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM plantas WHERE id_planta = ?", (plant_id,))
+    conn.commit()
+    conn.close()
