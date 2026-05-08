@@ -19,6 +19,7 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.image import Image
 from kivy.metrics import dp
 from kivy.core.window import Window
+from kivymd.uix.boxlayout import MDBoxLayout
 
 import data
 import functions
@@ -176,27 +177,77 @@ class AppPlantas(MDApp):
         plantas = data.get_all_plants()
 
         for p in plantas:
-            # p[0]=id, p[1]=nom, p[2]=esp, p[3]=tut, p[4]=f_t, p[5]=f_m, p[6]=l_m, p[7]=l_t, p[8]=img
             tiene_tutor = str(p[3]).lower() == "si"
             porcentaje_m = functions.obtener_estado_riego(p[6], p[5])
             
-            tarjeta = MDCard(orientation='vertical', padding=dp(10), size_hint=(1, None), radius=[dp(20)], elevation=2)
-            tarjeta.bind(width=lambda instance, value: setattr(instance, 'height', value))
+            # 1. TARJETA: Reducimos el padding superior a dp(5)
+            tarjeta = MDCard(
+                orientation='vertical', 
+                padding=[dp(10), dp(5), dp(10), dp(10)], # Menos espacio arriba
+                spacing=dp(5), 
+                size_hint=(None, None), 
+                width=dp(180),
+                height=dp(180), # <--- PRUEBA FORZAR ALTURA IGUAL AL ANCHO PARA CUADRADO PERFECTO
+                radius=[dp(20)], 
+                elevation=2
+            )
 
-            tarjeta.add_widget(MDLabel(text=f"[b]{p[1]}[/b]\n[size=10]{p[2]}[/size]", markup=True, halign="center", adaptive_height=True))
+            # 2. TÍTULOS: Agregamos un margen negativo o adaptive_height estricto
+            contenedor_titulos = MDBoxLayout(
+                orientation="vertical", 
+                adaptive_height=True, 
+                spacing=0
+            )
+            contenedor_titulos.add_widget(MDLabel(
+                text=f"[b]{p[1]}[/b]", markup=True, halign="center", 
+                font_style="H6", adaptive_height=True
+            ))
+            contenedor_titulos.add_widget(MDLabel(
+                text=p[2], halign="center", 
+                font_style="Subtitle1", theme_text_color="Secondary", 
+                adaptive_height=True
+            ))
+            tarjeta.add_widget(contenedor_titulos)
             
-            tarjeta.add_widget(Image(source=p[8], size_hint=(None, None), size=(dp(80), dp(80)), pos_hint={"center_x": 0.5}))
+            # 3. IMAGEN: Ajustamos el tamaño para que no estire la tarjeta
+            tarjeta.add_widget(Image(
+                source=p[8], 
+                size_hint=(1, None), 
+                height=dp(60), # Un poco más pequeña para compactar
+                allow_stretch=True
+            ))
 
-            # Barra Maceta
-            tarjeta.add_widget(MDProgressBar(value=porcentaje_m, size_hint_x=0.9, pos_hint={"center_x": 0.5}))
-            tarjeta.add_widget(MDLabel(text=f"M: {porcentaje_m}%", font_style="Caption", halign="center"))
+            # 4. CONTENEDOR DE BARRAS
+            layout_barras = MDBoxLayout(orientation="vertical", spacing=dp(2), adaptive_height=True)
 
-            # Barra Tutor
+            # Maceta
+            layout_barras.add_widget(MDProgressBar(
+                value=porcentaje_m, size_hint_x=0.9, pos_hint={"center_x": 0.5}, height=dp(4), size_hint_y=None
+            ))
+            layout_barras.add_widget(MDLabel(
+                text=f"M: {porcentaje_m}%", font_style="Caption", halign="center", adaptive_height=True
+            ))
+
+            # Tutor (Consistente)
             if tiene_tutor:
                 porcen_t = functions.obtener_estado_riego(p[7], p[4])
-                tarjeta.add_widget(MDProgressBar(value=porcen_t, color=(0.6, 0.4, 0.2, 1), size_hint_x=0.9, pos_hint={"center_x": 0.5}))
-                tarjeta.add_widget(MDLabel(text=f"T: {porcen_t}%", font_style="Caption", halign="center"))
+                color_barra = (0.6, 0.4, 0.2, 1)
+                texto_tutor = f"T: {porcen_t}%"
+                valor_barra = porcen_t
+            else:
+                color_barra = (0.8, 0.8, 0.8, 1)
+                texto_tutor = "T: No"
+                valor_barra = 100
 
+            layout_barras.add_widget(MDProgressBar(
+                value=valor_barra, color=color_barra, size_hint_x=0.9, 
+                pos_hint={"center_x": 0.5}, height=dp(4), size_hint_y=None
+            ))
+            layout_barras.add_widget(MDLabel(
+                text=texto_tutor, font_style="Caption", halign="center", adaptive_height=True
+            ))
+            
+            tarjeta.add_widget(layout_barras)
             self.contenedor_grid.add_widget(tarjeta)
 
 if __name__ == "__main__":
