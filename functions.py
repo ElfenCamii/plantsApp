@@ -111,23 +111,13 @@ def generar_semaforo(porcentaje):
 
 
 def show_inventory_logic(plantas):
-    print('\n' + '='*112)
-    header = f"{'PLANTA':<15} | {'ESPECIE':<18} | {'ESTADO MACETA':<17} | {'RIEGO MACETA':<14} | {'ESTADO TUTOR':<17} | {'RIEGO TUTOR'}"
-    print(header)
-    print('-'*112)
-
+    # ... cabeceras iguales ...
     for p in plantas:
-        # p[5]=last_watered, p[4]=irri_freq, p[6]=last_tutor, p[3]=tutor_freq
-        porcen_m = obtener_estado_riego(p[5], p[4])
-        porcen_t = obtener_estado_riego(p[6], p[3])
+        # p[0]=id, p[1]=nombre, p[2]=especie, p[3]=tutor, p[4]=freq_t, p[5]=freq_m, p[6]=last_m, p[7]=last_t, p[8]=img
+        porcen_m = obtener_estado_riego(p[6], p[5]) # last_watered y irri_frequency
+        porcen_t = obtener_estado_riego(p[7], p[4]) # last_tutor_watered y irri_tutor
         
-        # Barras visuales
         barra_m = f'[{"#" * int(porcen_m / 10):<10}]'
         barra_t = f'[{"#" * int(porcen_t / 10):<10}]'
         
-        # Semáforos
-        alerta_m = generar_semaforo(porcen_m)
-        alerta_t = generar_semaforo(porcen_t)
-
-        print(f'{p[0]:<15} | {p[1]:<18} | {barra_m} {porcen_m:>3}% | {alerta_m:<10} | {barra_t} {porcen_t:>2}% | {alerta_t}')
-    print('='*112)
+        print(f'{p[1]:<15} | {p[2]:<18} | {barra_m} {porcen_m:>3}% | {generar_semaforo(porcen_m):<10} | {barra_t} {porcen_t:>2}% | {generar_semaforo(porcen_t)}')

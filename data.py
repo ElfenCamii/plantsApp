@@ -6,36 +6,33 @@ DB_NAME = 'plantas.db'
 
 
 def init_db():
-    """Crea la tabla si no existe al iniciar la app"""
     conn = sql.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute(
         '''CREATE TABLE IF NOT EXISTS plantas(
+            id_planta INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT,
             species TEXT, 
             plant_tutor TEXT,
             irri_tutor INTEGER,
             irri_frequency INTEGER,
-            last_watered TEXT
+            last_watered TEXT,
+            last_tutor_watered TEXT,
+            image_path TEXT
         )'''
     )
     conn.commit()
     conn.close()
 
 
-def insert_plant(nombre, especie, tutor, frecuencia_tutor, frecuencia):
+def insert_plant(nombre, especie, tutor, frecuencia_tutor, frecuencia, imagen):
     conn = sql.connect(DB_NAME)
     cursor = conn.cursor()
-    
-    # Obtenemos la fecha de hoy en formato YYYY-MM-DD
     hoy = date.today().isoformat() 
-    
     instruction = '''INSERT INTO plantas 
-                     (name, species, plant_tutor, irri_tutor, irri_frequency, last_watered, last_tutor_watered) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?)'''
-    
-    # Pasamos 'hoy' para ambas fechas de riego iniciales
-    cursor.execute(instruction, (nombre, especie, tutor, frecuencia_tutor, frecuencia, hoy, hoy))
+                     (name, species, plant_tutor, irri_tutor, irri_frequency, last_watered, last_tutor_watered, image_path) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)'''
+    cursor.execute(instruction, (nombre, especie, tutor, frecuencia_tutor, frecuencia, hoy, hoy, imagen))
     conn.commit()
     conn.close()
 
@@ -69,16 +66,14 @@ def updatePlantField(plant_name, plant_species, column_name, new_value):
     conn.close()
 
 
-def deletRowPlants(plant_name, plant_species):
+def deletRowPlants(id_planta):
     conn = sql.connect(DB_NAME)
     cursor = conn.cursor()
-    # Corregido: "AND" en lugar de "AMD"
-    instruction = 'DELETE FROM plantas WHERE name=? AND species=?'
-    cursor.execute(instruction, (plant_name, plant_species))
-    filas_borradas = cursor.rowcount
+    # Mucho más limpio y seguro
+    instruction = 'DELETE FROM plantas WHERE id_planta=?'
+    cursor.execute(instruction, (id_planta,))
     conn.commit()
     conn.close()
-    return filas_borradas 
 
 
 
@@ -105,12 +100,9 @@ def reset_watering(nombre, especie, es_tutor=False):
     conn = sql.connect(DB_NAME)
     cursor = conn.cursor()
     hoy = date.today().isoformat()
-    
     columna = "last_tutor_watered" if es_tutor else "last_watered"
-    
     instruction = f'UPDATE plantas SET {columna}=? WHERE name=? AND species=?'
     cursor.execute(instruction, (hoy, nombre, especie))
-    
     conn.commit()
     conn.close()
 
