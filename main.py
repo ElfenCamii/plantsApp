@@ -16,6 +16,6 @@ Logger.setLevel(logging.ERROR)
 
 if __name__ == "__main__":
     Window.top = 40
-    Window.left = 500
+    Window.left = -500
     # Aquí es donde ocurre la magia:
     RegandoAndo().run()
