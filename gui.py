@@ -3,224 +3,232 @@ from kivymd.uix.screen import MDScreen
 from kivymd.uix.scrollview import MDScrollView
 from kivymd.uix.gridlayout import MDGridLayout
 from kivymd.uix.floatlayout import MDFloatLayout
-from kivymd.uix.button import MDRaisedButton, MDFlatButton, MDIconButton, MDFloatingActionButton
-from kivymd.uix.card import MDCard
+from kivymd.uix.anchorlayout import MDAnchorLayout
+from kivymd.uix.boxlayout import MDBoxLayout
+from kivymd.uix.button import MDRaisedButton, MDFlatButton, MDIconButton, MDRectangleFlatIconButton
 from kivymd.uix.label import MDLabel
-from kivymd.uix.progressbar import MDProgressBar
 from kivymd.uix.dialog import MDDialog
 from kivymd.uix.textfield import MDTextField
 from kivymd.uix.selectioncontrol import MDSwitch
-from kivymd.uix.toolbar import MDTopAppBar  # IMPORTANTE
-from kivymd.uix.boxlayout import MDBoxLayout
-from kivy.uix.boxlayout import BoxLayout
+
 from kivy.uix.image import Image
+from kivy.uix.widget import Widget
+from kivy.graphics import Color, Line
+from kivy.properties import NumericProperty, ColorProperty, StringProperty
 from kivy.metrics import dp
-from kivy.clock import Clock
 
 import data
 import functions
 from components import LongPressCard
+from datetime import datetime
+
+class CircularProgress(Widget):
+    value = NumericProperty(100)
+    color = ColorProperty([0, 1, 0, 1])
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.bind(pos=self.draw, size=self.draw, value=self.draw)
+
+    def draw(self, *args):
+        self.canvas.before.clear()
+        with self.canvas.before:
+            cx, cy = self.x + self.width / 2, self.y + self.height / 2
+            radius = self.width / 2
+            Color(0.8, 0.8, 0.8, 0.3)
+            Line(circle=(cx, cy, radius), width=dp(2))
+            Color(*self.color)
+            angle_start = 90
+            angle_end = 90 - (max(0.1, self.value) / 100) * 360
+            Line(circle=(cx, cy, radius, angle_end, angle_start), width=dp(3.5), cap='round')
 
 class RegandoAndo(MDApp):
     dialogo = None 
-    dialogo_eliminar = None
+    dialogo_selector = None
+    modo_eliminar = False
     imagen_seleccionada = "assets/img_planta_01.png"
-    lista_botones_iconos = []
 
     def build(self):
         data.init_db() 
         self.theme_cls.primary_palette = "Green"
-        self.theme_cls.theme_style = "Light"
-        
-        self.pantalla_principal = MDScreen()
-        
-        # Layout principal vertical sin espacios extra
-        layout_principal = MDBoxLayout(orientation="vertical", spacing=0, padding=0)
+        self.root = MDScreen()
+        layout_principal = MDBoxLayout(orientation="vertical")
 
-        # 1. Contenedor central (Scroll + Botón Flotante)
-        # Le damos size_hint_y=1 para que empuje la barra hacia abajo
-        contenedor_central = MDFloatLayout(size_hint_y=1)
-
-        # Ajustamos el ScrollView para que empiece en el tope (pos_hint top: 1)
-        scroll = MDScrollView(
-            size_hint=(1, 1), 
-            pos_hint={'x': 0, 'top': 1},
-            do_scroll_x=False
-        )
+        scroll = MDScrollView(do_scroll_x=False)
+        self.contenedor_grid = MDGridLayout(cols=2, spacing=dp(12), padding=dp(12), adaptive_height=True)
         
-        self.contenedor_grid = MDGridLayout(
-            cols=2, 
-            spacing=dp(12), 
-            padding=[dp(12), dp(12), dp(12), dp(80)], # Padding inferior extra para que el botón no tape la última planta
-            adaptive_height=True 
-        )
         self.cargar_inventario()
-        
         scroll.add_widget(self.contenedor_grid)
+        layout_principal.add_widget(scroll)
 
-        # 2. Botón Flotante para Agregar
-        self.boton_agregar = MDFloatingActionButton(
-            icon="plus",
-            md_bg_color=self.theme_cls.primary_color,
-            pos_hint={"right": 0.95, "y": 0.03}, 
-            on_release=self.abrir_formulario
-        )
+        self.nav_bar = MDBoxLayout(orientation="horizontal", md_bg_color=self.theme_cls.primary_color, height=dp(56), size_hint_y=None)
+        self.renderizar_nav_bar()
 
-        contenedor_central.add_widget(scroll)
-        contenedor_central.add_widget(self.boton_agregar)
+        layout_principal.add_widget(self.nav_bar)
+        self.root.add_widget(layout_principal)
+        return self.root
 
-        # 3. Barra de navegación inferior
-        nav_bar = MDTopAppBar(
-            title="", 
-            md_bg_color=self.theme_cls.primary_color,
-            elevation=4,
-            type_height="small",
-            size_hint_y=None,
-            height=dp(56)
-        )
-        # Usamos lambda *args para recibir el objeto del botón y que no se cierre
-        nav_bar.left_action_items = [["trash-can", lambda *args: self.activar_modo_eliminar()]]
-
-        # Unimos las piezas
-        layout_principal.add_widget(contenedor_central)
-        layout_principal.add_widget(nav_bar)
-        
-        self.pantalla_principal.add_widget(layout_principal)
-        return self.pantalla_principal
-
-    def activar_modo_eliminar(self, *args):
-        self.dialogo_info = MDDialog(
-            title="Modo Eliminación",
-            text="Para eliminar una planta, simplemente haz un [b]clic normal[/b] sobre su tarjeta.",
-            buttons=[
-                MDFlatButton(
-                    text="ENTENDIDO", 
-                    theme_text_color="Custom",
-                    text_color=self.theme_cls.primary_color,
-                    on_release=lambda x: self.dialogo_info.dismiss()
-                )
-            ]
-        )
-        self.dialogo_info.open()
-
-    def abrir_formulario(self, *args):
-        self.lista_botones_iconos = []
-        scroll = MDScrollView(size_hint_y=None, height=dp(450))
-        self.contenido = BoxLayout(orientation="vertical", spacing="20dp", padding=[dp(20), dp(20), dp(20), dp(20)], size_hint_y=None)
-        self.contenido.bind(minimum_height=self.contenido.setter('height'))
-
-        self.campo_nombre = MDTextField(hint_text="Nombre de la planta", mode="rectangle")
-        self.campo_especie = MDTextField(hint_text="Especie", mode="rectangle")
-        self.campo_frec_m = MDTextField(hint_text="Riego Maceta (días)", text="7", input_filter="int", mode="rectangle")
-        
-        fila_tutor = BoxLayout(orientation="horizontal", size_hint_y=None, height="48dp", padding=[0, 0, dp(15), 0])
-        fila_tutor.add_widget(MDLabel(text="¿Tiene tutor?", theme_text_color="Secondary"))
-        self.switch_tutor = MDSwitch(active=False, pos_hint={'center_y': 0.5})
-        self.switch_tutor.bind(active=self.mostrar_campo_tutor)
-        fila_tutor.add_widget(self.switch_tutor)
-        
-        self.campo_frec_t = MDTextField(hint_text="Riego Tutor (días)", text="15", input_filter="int", mode="rectangle", size_hint_y=None, height=0, opacity=0)
-        
-        label_selector = MDLabel(text="Selecciona un icono:", font_style="Caption", theme_text_color="Secondary")
-        selector_grid = MDGridLayout(cols=3, spacing="15dp", adaptive_height=True)
-        
-        for i in range(1, 10):
-            nombre_img = f"assets/img_planta_0{i}.png"
-            btn_img = MDIconButton(icon=nombre_img, icon_size=dp(40), on_release=lambda x, path=nombre_img: self.seleccionar_icono(path, x))
-            self.lista_botones_iconos.append(btn_img)
-            selector_grid.add_widget(btn_img)
-
-        self.contenido.add_widget(self.campo_nombre)
-        self.contenido.add_widget(self.campo_especie)
-        self.contenido.add_widget(self.campo_frec_m)
-        self.contenido.add_widget(fila_tutor)
-        self.contenido.add_widget(self.campo_frec_t)
-        self.contenido.add_widget(label_selector)
-        self.contenido.add_widget(selector_grid)
-        scroll.add_widget(self.contenido)
-
-        self.dialogo = MDDialog(
-            title="Nueva Planta",
-            type="custom",
-            content_cls=scroll,
-            buttons=[
-                MDFlatButton(text="CANCELAR", on_release=lambda x: self.dialogo.dismiss()),
-                MDRaisedButton(text="GUARDAR", md_bg_color=self.theme_cls.primary_color, on_release=self.guardar_nueva_planta)
-            ],
-        )
-        self.dialogo.open()
-
-    def mostrar_campo_tutor(self, instance, value):
-        if value:
-            self.campo_frec_t.height = dp(60)
-            self.campo_frec_t.opacity = 1
-        else:
-            self.campo_frec_t.height = 0
-            self.campo_frec_t.opacity = 0
-
-    def seleccionar_icono(self, ruta, instancia):
-        self.imagen_seleccionada = ruta
-        for btn in self.lista_botones_iconos:
-            btn.md_bg_color = [0, 0, 0, 0]
-        instancia.md_bg_color = self.theme_cls.primary_light
-
-    def guardar_nueva_planta(self, *args):
-        nombre = self.campo_nombre.text
-        especie = self.campo_especie.text
-        tutor = "si" if self.switch_tutor.active else "no"
-        frec_m = int(self.campo_frec_m.text) if self.campo_frec_m.text.isdigit() else 7
-        frec_t = int(self.campo_frec_t.text) if (tutor == "si" and self.campo_frec_t.text.isdigit()) else 0
-        data.insert_plant(nombre, especie, tutor, frec_t, frec_m, self.imagen_seleccionada)
-        self.dialogo.dismiss()
-        self.cargar_inventario()
-
-    def mostrar_opciones(self, plant_id):
-        self.dialogo_eliminar = MDDialog(
-            title="¿Eliminar planta?",
-            text="Esta acción no se puede deshacer.",
-            buttons=[
-                MDFlatButton(text="CANCELAR", on_release=lambda x: self.dialogo_eliminar.dismiss()),
-                MDRaisedButton(text="ELIMINAR", md_bg_color=(1, 0, 0, 1), on_release=lambda x: self.confirmar_eliminacion(plant_id)),
-            ],
-        )
-        self.dialogo_eliminar.open()
-
-    def confirmar_eliminacion(self, plant_id):
-        data.delete_plant(plant_id)
-        if self.dialogo_eliminar: self.dialogo_eliminar.dismiss()
-        self.cargar_inventario()
+    def renderizar_nav_bar(self):
+        self.nav_bar.clear_widgets()
+        color_iconos = [1, 0.3, 0.3, 1] if self.modo_eliminar else [1, 1, 1, 1]
+        items = [("trash-can", self.activar_modo_eliminar), ("plus-circle", self.abrir_formulario), ("cog", self.abrir_ajustes)]
+        for icon, func in items:
+            area = MDFloatLayout(size_hint_x=0.33)
+            btn = MDIconButton(icon=icon, theme_text_color="Custom", text_color=color_iconos,
+                               pos_hint={'center_x': 0.5, 'center_y': 0.5}, on_release=func)
+            if icon == "plus-circle": btn.icon_size = dp(36)
+            area.add_widget(btn)
+            self.nav_bar.add_widget(area)
 
     def cargar_inventario(self):
         self.contenedor_grid.clear_widgets()
         plantas = data.get_all_plants()
         for p in plantas:
-            tiene_tutor = str(p[3]).lower() == "si"
-            porcentaje_m = functions.obtener_estado_riego(p[6], p[5])
-            tarjeta = LongPressCard(orientation='vertical', padding=[dp(10), dp(5), dp(10), dp(10)], spacing=dp(5), size_hint=(None, None), width=dp(180), height=dp(180), radius=[dp(20)], elevation=2)
-            tarjeta.on_long_press = lambda *x: None 
-            tarjeta.bind(on_release=lambda instance, plant_id=p[0]: self.mostrar_opciones(plant_id))
+            porc_m = data.calcular_barra_vida(p[6], p[5])
+            tarjeta = LongPressCard(orientation='vertical', padding=dp(10), size_hint=(1, None), height=dp(250), radius=[dp(20)], elevation=2)
+            tarjeta.bind(on_release=lambda x, p_id=p[0]: self.mostrar_opciones(p_id))
             
-            contenedor_titulos = MDBoxLayout(orientation="vertical", adaptive_height=True, spacing=0)
-            contenedor_titulos.add_widget(MDLabel(text=f"[b]{p[1]}[/b]", markup=True, halign="center", font_style="H6", adaptive_height=True))
-            contenedor_titulos.add_widget(MDLabel(text=p[2], halign="center", font_style="Subtitle1", theme_text_color="Secondary", adaptive_height=True))
-            tarjeta.add_widget(contenedor_titulos)
-            tarjeta.add_widget(Image(source=p[8], size_hint=(1, None), height=dp(60), fit_mode="contain"))
+            tarjeta.add_widget(MDLabel(text=f"[b]{p[1]}[/b]", markup=True, halign="center", font_style="H6", size_hint_y=None, height=dp(30)))
+            tarjeta.add_widget(MDLabel(text=p[2] if p[2] else " ", halign="center", font_style="Subtitle2", theme_text_color="Secondary", size_hint_y=None, height=dp(20)))
+            tarjeta.add_widget(Image(source=p[8], size_hint=(1, None), height=dp(80), fit_mode="contain"))
             
-            layout_barras = MDBoxLayout(orientation="vertical", spacing=dp(2), adaptive_height=True)
-            layout_barras.add_widget(MDProgressBar(value=porcentaje_m, size_hint_x=0.9, pos_hint={"center_x": 0.5}, height=dp(4), size_hint_y=None))
-            layout_barras.add_widget(MDLabel(text=f"M: {porcentaje_m}%", font_style="Caption", halign="center", adaptive_height=True))
+            layout_riego = MDBoxLayout(orientation="horizontal", spacing=dp(20), adaptive_size=True, pos_hint={"center_x": 0.5})
+            area_m = MDAnchorLayout(size_hint=(None, None), size=(dp(50), dp(50)))
+            area_m.add_widget(CircularProgress(value=porc_m, color=[0.2, 0.7, 0.3, 1], size=(dp(46), dp(46))))
+            area_m.add_widget(MDIconButton(icon="", on_release=lambda x, p_id=p[0]: self.regar_planta(p_id, "maceta")))
+            area_m.add_widget(MDLabel(text="M", font_style="Caption", halign="center"))
+            layout_riego.add_widget(area_m)
 
-            if tiene_tutor:
-                porcen_t = functions.obtener_estado_riego(p[7], p[4])
-                color_barra, texto_tutor, valor_barra = (0.6, 0.4, 0.2, 1), f"T: {porcen_t}%", porcen_t
-            else:
-                color_barra, texto_tutor, valor_barra = (0.8, 0.8, 0.8, 1), "T: No", 100
+            if str(p[3]).lower() == "si":
+                porc_t = data.calcular_barra_vida(p[7], p[4])
+                area_t = MDAnchorLayout(size_hint=(None, None), size=(dp(50), dp(50)))
+                area_t.add_widget(CircularProgress(value=porc_t, color=[0.6, 0.4, 0.2, 1], size=(dp(46), dp(46))))
+                area_t.add_widget(MDIconButton(icon="", on_release=lambda x, p_id=p[0]: self.regar_planta(p_id, "tutor")))
+                area_t.add_widget(MDLabel(text="T", font_style="Caption", halign="center"))
+                layout_riego.add_widget(area_t)
 
-            layout_barras.add_widget(MDProgressBar(value=valor_barra, color=color_barra, size_hint_x=0.9, pos_hint={"center_x": 0.5}, height=dp(4), size_hint_y=None))
-            layout_barras.add_widget(MDLabel(text=texto_tutor, font_style="Caption", halign="center", adaptive_height=True))
-            
-            tarjeta.add_widget(layout_barras)
+            tarjeta.add_widget(layout_riego)
             self.contenedor_grid.add_widget(tarjeta)
+
+    # --- NUEVO SELECTOR DE IMÁGENES TIPO GRID ---
+    def mostrar_selector_imagenes(self, *args):
+        # Crear la cuadrícula de imágenes
+        lista_imagenes = [f"assets/img_planta_0{i}.png" for i in range(1, 10)]
+        grid_fotos = MDGridLayout(cols=3, spacing=dp(10), adaptive_height=True, padding=dp(10))
+        
+        for img_path in lista_imagenes:
+            btn_foto = MDIconButton(
+                icon=img_path,
+                icon_size=dp(70),
+                size_hint=(None, None),
+                size=(dp(80), dp(80))
+            )
+            # Al seleccionar, actualizamos la imagen y cerramos SOLO el selector
+            btn_foto.bind(on_release=lambda x, path=img_path: self.seleccionar_esta_imagen(path))
+            grid_fotos.add_widget(btn_foto)
+
+        # Usar un Box con Scroll para que el contenido no rompa el diálogo
+        contenido = MDBoxLayout(orientation="vertical", size_hint_y=None, height=dp(300))
+        scroll = MDScrollView()
+        scroll.add_widget(grid_fotos)
+        contenido.add_widget(scroll)
+
+        self.dialogo_selector = MDDialog(
+            title="Selecciona una Planta",
+            type="custom",
+            content_cls=contenido,
+        )
+        self.dialogo_selector.open()
+
+    def seleccionar_esta_imagen(self, path):
+        self.imagen_seleccionada = path
+        # Actualizamos la fuente de la imagen en el formulario anterior
+        self.img_preview.source = path 
+        self.dialogo_selector.dismiss()
+
+    def abrir_formulario(self, *args):
+        self.imagen_seleccionada = "assets/img_planta_01.png"
+        layout = MDBoxLayout(orientation="vertical", spacing=dp(10), size_hint_y=None, height=dp(480), padding=dp(10))
+        
+        self.tf_nombre = MDTextField(hint_text="Nombre de la planta")
+        self.tf_especie = MDTextField(hint_text="Especie")
+        self.tf_freq_m = MDTextField(hint_text="Frecuencia Maceta (días)", input_filter="int")
+        
+        row_tutor = MDBoxLayout(orientation="horizontal", adaptive_height=True)
+        row_tutor.add_widget(MDLabel(text="¿Tiene Tutor?", theme_text_color="Secondary"))
+        self.switch_tutor = MDSwitch(active=False)
+        self.switch_tutor.bind(active=self.toggle_tutor_field)
+        row_tutor.add_widget(self.switch_tutor)
+        
+        self.tf_freq_t = MDTextField(hint_text="Frecuencia Tutor (días)", input_filter="int", opacity=0, disabled=True)
+        
+        self.img_preview = Image(source=self.imagen_seleccionada, size_hint_y=None, height=dp(80))
+        btn_abrir_grid = MDRaisedButton(
+            text="CAMBIAR IMAGEN", 
+            pos_hint={"center_x": 0.5},
+            on_release=self.mostrar_selector_imagenes # Aquí llamamos al selector
+        )
+
+        layout.add_widget(self.tf_nombre)
+        layout.add_widget(self.tf_especie)
+        layout.add_widget(self.tf_freq_m)
+        layout.add_widget(row_tutor)
+        layout.add_widget(self.tf_freq_t)
+        layout.add_widget(self.img_preview)
+        layout.add_widget(btn_abrir_grid)
+
+        # IMPORTANTE: auto_dismiss=False para que no se cierre al abrir otro diálogo
+        self.dialogo = MDDialog(
+            title="Nueva Planta",
+            type="custom",
+            content_cls=layout,
+            auto_dismiss=False, 
+            buttons=[
+                MDFlatButton(text="CANCELAR", on_release=lambda x: self.dialogo.dismiss()),
+                MDRaisedButton(text="GUARDAR", on_release=self.guardar_planta)
+            ]
+        )
+        self.dialogo.open()
+
+    def toggle_tutor_field(self, instance, value):
+        self.tf_freq_t.opacity = 1 if value else 0
+        self.tf_freq_t.disabled = not value
+
+    def guardar_planta(self, *args):
+        tutor_status = "si" if self.switch_tutor.active else "no"
+        f_t = int(self.tf_freq_t.text) if self.switch_tutor.active and self.tf_freq_t.text else 0
+        f_m = int(self.tf_freq_m.text) if self.tf_freq_m.text else 7
+        data.insert_plant(self.tf_nombre.text, self.tf_especie.text, tutor_status, f_t, f_m, self.imagen_seleccionada)
+        self.dialogo.dismiss()
+        self.cargar_inventario()
+
+    def regar_planta(self, plant_id, tipo):
+        fecha = datetime.now().strftime('%Y-%m-%d')
+        if tipo == "maceta": data.update_last_watered_m(plant_id, fecha)
+        else: data.update_last_watered_t(plant_id, fecha)
+        self.cargar_inventario()
+
+    def activar_modo_eliminar(self, *args):
+        self.modo_eliminar = not self.modo_eliminar
+        self.renderizar_nav_bar()
+
+    def mostrar_opciones(self, plant_id):
+        if self.modo_eliminar:
+            self.dialogo = MDDialog(
+                title="¿Eliminar planta?",
+                buttons=[
+                    MDFlatButton(text="NO", on_release=lambda x: self.dialogo.dismiss()),
+                    MDRaisedButton(text="SÍ, ELIMINAR", on_release=lambda x: self.confirmar_borrado(plant_id))
+                ]
+            )
+            self.dialogo.open()
+
+    def confirmar_borrado(self, plant_id):
+        data.delete_plant(plant_id)
+        self.dialogo.dismiss()
+        self.cargar_inventario()
+
+    def abrir_ajustes(self, *args): pass
 
 if __name__ == "__main__":
     RegandoAndo().run()
