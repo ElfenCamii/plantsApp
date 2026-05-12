@@ -1,9 +1,7 @@
 import sqlite3 as sql
-from datetime import datetime, date, timedelta
-
+from datetime import datetime, date
 
 DB_NAME = 'plantas.db'
-
 
 def init_db():
     conn = sql.connect(DB_NAME)
@@ -24,18 +22,15 @@ def init_db():
     conn.commit()
     conn.close()
 
-
-def insert_plant(nombre, especie, tutor, frecuencia_tutor, frecuencia, imagen):
+def insert_plant(nombre, especie, tutor, frecuencia_tutor, frecuencia, imagen, last_m, last_t):
     conn = sql.connect(DB_NAME)
     cursor = conn.cursor()
-    hoy = date.today().isoformat() 
     instruction = '''INSERT INTO plantas 
                      (name, species, plant_tutor, irri_tutor, irri_frequency, last_watered, last_tutor_watered, image_path) 
                      VALUES (?, ?, ?, ?, ?, ?, ?, ?)'''
-    cursor.execute(instruction, (nombre, especie, tutor, frecuencia_tutor, frecuencia, hoy, hoy, imagen))
+    cursor.execute(instruction, (nombre, especie, tutor, frecuencia_tutor, frecuencia, last_m, last_t, imagen))
     conn.commit()
     conn.close()
-
 
 def get_all_plants():
     conn = sql.connect(DB_NAME)
@@ -45,38 +40,21 @@ def get_all_plants():
     conn.close()
     return datos
 
-
-def search_plants(name_to_search):
-    conn = sql.connect(DB_NAME)
-    cursor = conn.cursor()
-    term = f'{name_to_search}%'
-    instruction = f'SELECT * FROM plantas WHERE name like ?'
-    cursor.execute(instruction, (term,))
-    datos = cursor.fetchall()
-    conn.close()
-    return datos
-
-
 def update_last_watered_m(plant_id, date_str):
-    """ Actualiza el riego de la maceta usando el ID correcto """
     conn = sql.connect(DB_NAME)
     cursor = conn.cursor()
-    # Usamos ISOFORMAT (YYYY-MM-DD) para ser consistentes con tu insert_plant
     solo_fecha = date_str.split(" ")[0] 
     cursor.execute("UPDATE plantas SET last_watered = ? WHERE id_planta = ?", (solo_fecha, plant_id))
     conn.commit()
     conn.close()
 
-
 def update_last_watered_t(plant_id, date_str):
-    """ Actualiza el riego del tutor usando el ID correcto """
     conn = sql.connect(DB_NAME)
     cursor = conn.cursor()
     solo_fecha = date_str.split(" ")[0]
     cursor.execute("UPDATE plantas SET last_tutor_watered = ? WHERE id_planta = ?", (solo_fecha, plant_id))
     conn.commit()
     conn.close()
-
 
 def delete_plant(plant_id):
     conn = sql.connect(DB_NAME)
@@ -85,24 +63,14 @@ def delete_plant(plant_id):
     conn.commit()
     conn.close()
 
-
 def calcular_barra_vida(fecha_ultimo_riego, frecuencia):
-    if not fecha_ultimo_riego:
+    if not fecha_ultimo_riego or frecuencia <= 0:
         return 0
     try:
         ultimo_riego = datetime.strptime(fecha_ultimo_riego, '%Y-%m-%d').date()
-        hoy = datetime.now().date()
+        hoy = date.today()
         dias_pasados = (hoy - ultimo_riego).days
         porcentaje = 100 - (dias_pasados / frecuencia * 100)
         return max(0, min(100, round(porcentaje)))
     except:
         return 0
-
-
-def updatePlantField(plant_name, plant_species, column_name, new_value):
-    conn = sql.connect(DB_NAME)
-    cursor = conn.cursor()
-    instruction = f'UPDATE plantas SET {column_name}=? WHERE name=? AND species=?'
-    cursor.execute(instruction, (new_value, plant_name, plant_species))
-    conn.commit()
-    conn.close()
