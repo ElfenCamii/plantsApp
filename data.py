@@ -1,5 +1,5 @@
 import sqlite3 as sql
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 DB_NAME = 'plantas.db'
 
@@ -43,16 +43,16 @@ def get_all_plants():
 def update_last_watered_m(plant_id, date_str):
     conn = sql.connect(DB_NAME)
     cursor = conn.cursor()
-    solo_fecha = date_str.split(" ")[0] 
-    cursor.execute("UPDATE plantas SET last_watered = ? WHERE id_planta = ?", (solo_fecha, plant_id))
+    # ELIMINAMOS EL SPLIT. Guardamos la cadena completa con hora.
+    cursor.execute("UPDATE plantas SET last_watered = ? WHERE id_planta = ?", (date_str, plant_id))
     conn.commit()
     conn.close()
 
 def update_last_watered_t(plant_id, date_str):
     conn = sql.connect(DB_NAME)
     cursor = conn.cursor()
-    solo_fecha = date_str.split(" ")[0]
-    cursor.execute("UPDATE plantas SET last_tutor_watered = ? WHERE id_planta = ?", (solo_fecha, plant_id))
+    # ELIMINAMOS EL SPLIT.
+    cursor.execute("UPDATE plantas SET last_tutor_watered = ? WHERE id_planta = ?", (date_str, plant_id))
     conn.commit()
     conn.close()
 
@@ -63,14 +63,67 @@ def delete_plant(plant_id):
     conn.commit()
     conn.close()
 
-def calcular_barra_vida(fecha_ultimo_riego, frecuencia):
-    if not fecha_ultimo_riego or frecuencia <= 0:
+def calcular_barra_vida(fecha_ultimo_riego, frecuencia_dias):
+    if not fecha_ultimo_riego or frecuencia_dias <= 0:
         return 0
     try:
-        ultimo_riego = datetime.strptime(fecha_ultimo_riego, '%Y-%m-%d').date()
-        hoy = date.today()
-        dias_pasados = (hoy - ultimo_riego).days
-        porcentaje = 100 - (dias_pasados / frecuencia * 100)
-        return max(0, min(100, round(porcentaje)))
-    except:
+        frecuencia_horas = frecuencia_dias * 24
+        
+        # Intentar leer con HORA (nuevo formato)
+        try:
+            ultimo_riego = datetime.strptime(fecha_ultimo_riego, '%Y-%m-%d %H:%M')
+        except ValueError:
+            # Si falla, leer solo FECHA (formato viejo) y añadirle hora 00:00
+            ultimo_riego = datetime.strptime(fecha_ultimo_riego, '%Y-%m-%d')
+        
+        ahora = datetime.now()
+        diferencia = ahora - ultimo_riego
+        horas_pasadas = diferencia.total_seconds() / 3600
+        
+        if horas_pasadas <= frecuencia_horas:
+            porcentaje = 100 - (horas_pasadas / frecuencia_horas * 100)
+            return round(porcentaje)
+        else:
+            horas_retraso = horas_pasadas - frecuencia_horas
+            porcentaje_retraso = (horas_retraso / 48) * 100
+            return max(-100, round(-porcentaje_retraso))
+    except Exception as e:
+        print(f"Error en calculo: {e}")
         return 0
+    
+def get_plant_by_id(plant_id):
+    conn = sql.connect(DB_NAME) # Usamos la variable DB_NAME que ya tienes
+    cursor = conn.cursor()
+    # Cambiado 'id' por 'id_planta'
+    cursor.execute("SELECT * FROM plantas WHERE id_planta = ?", (plant_id,))
+    planta = cursor.fetchone()
+    conn.close()
+    return planta
+
+def update_plant_full(p_id, nombre, especie, tutor, freq_t, freq_m, img, u_m, u_t):
+    conn = sql.connect(DB_NAME)
+    cursor = conn.cursor()
+    # Ajustamos los nombres de las columnas para que coincidan con tu tabla:
+    # name, species, plant_tutor, irri_tutor, irri_frequency, image_path, last_watered, last_tutor_watered
+    cursor.execute("""
+        UPDATE plantas SET 
+        name=?, species=?, plant_tutor=?, irri_tutor=?, 
+        irri_frequency=?, image_path=?, last_watered=?, last_tutor_watered=? 
+        WHERE id_planta=?
+    """, (nombre, especie, tutor, freq_t, freq_m, img, u_m, u_t, p_id))
+    conn.commit()
+    conn.close()
+
+def simular_paso_del_tiempo(dias_atras, nombre_planta, especie_planta):
+    conn = sql.connect('plantas.db')
+    cursor = conn.cursor()
+
+    # Calculamos una fecha del pasado
+    fecha_falsa = (date.today() - timedelta(days=dias_atras)).isoformat()
+
+    # Actualizamos la planta para que parezca que se regó hace X días
+    cursor.execute('UPDATE plantas SET last_watered=? WHERE name=? AND species=?', (fecha_falsa, nombre_planta, especie_planta))
+
+    conn.commit()
+    conn.close()
+    print(f"Simulación: {nombre_planta} {especie_planta} ahora aparece como regada hace {dias_atras} días.")

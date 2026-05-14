@@ -36,17 +36,33 @@ class CircularProgress(Widget):
         with self.canvas.before:
             cx, cy = self.x + self.width / 2, self.y + self.height / 2
             radius = self.width / 2
+            
+            # Fondo gris circular
             Color(0.8, 0.8, 0.8, 0.3)
             Line(circle=(cx, cy, radius), width=dp(2))
-            Color(*self.color)
+            
             angle_start = 90
-            angle_end = 90 - (max(0.1, self.value) / 100) * 360
-            Line(circle=(cx, cy, radius, angle_end, angle_start), width=dp(3.5), cap='round')
+            
+            if self.value >= 0:
+                # Lógica normal (Verde/Vida): Sentido horario
+                Color(*self.color)
+                # Kivy dibuja antihorario por defecto, así que 90 - (porcentaje)
+                angle_end = 90 - (max(0.1, self.value) / 100) * 360
+                Line(circle=(cx, cy, radius, angle_end, angle_start), width=dp(3.5), cap='round')
+            else:
+                # Lógica de Deuda (Rojo): Sentido antihorario
+                Color(1, 0, 0, 1) # Rojo puro
+                # Convertimos el valor negativo a positivo para el cálculo (max 2 días = 100%)
+                abs_value = min(100, abs(self.value))
+                # Para que crezca al revés, sumamos al ángulo de inicio
+                angle_end = 90 + (abs_value / 100) * 360
+                Line(circle=(cx, cy, radius, angle_start, angle_end), width=dp(4), cap='round')
 
 class RegandoAndo(MDApp):
     dialogo = None 
     modo_eliminar = False
     imagen_seleccionada = "assets/img_planta_01.png"
+    
 
     def build(self):
         data.init_db()
@@ -66,6 +82,9 @@ class RegandoAndo(MDApp):
 
         layout_principal.add_widget(self.nav_bar)
         self.root.add_widget(layout_principal)
+
+        Clock.schedule_interval(lambda dt: self.cargar_inventario(), 60)
+
         return self.root
 
     def renderizar_nav_bar(self):
@@ -84,27 +103,56 @@ class RegandoAndo(MDApp):
         self.contenedor_grid.clear_widgets()
         plantas = data.get_all_plants()
         for p in plantas:
+            # 1. Cálculos de vida
             porc_m = data.calcular_barra_vida(p[6], p[5])
-            tarjeta = LongPressCard(orientation='vertical', padding=dp(10), size_hint=(1, None), height=dp(250), radius=[dp(20)], elevation=2)
+            color_m = [0.2, 0.7, 0.3, 1] if porc_m >= 0 else [1, 0, 0, 1]
+            
+            # 2. Tarjeta Principal
+            tarjeta = LongPressCard(
+                orientation='vertical', padding=dp(10), size_hint=(1, None), 
+                height=dp(250), radius=[dp(20)], elevation=2,
+                on_long_press=lambda x, p_id=p[0]: self.abrir_editor(p_id)
+            )
+            # Solo abre opciones si NO estamos en modo eliminar
             tarjeta.bind(on_release=lambda x, p_id=p[0]: self.mostrar_opciones(p_id))
+            
+            # 3. Contenido visual
             tarjeta.add_widget(MDLabel(text=f"[b]{p[1]}[/b]", markup=True, halign="center", font_style="H6", size_hint_y=None, height=dp(30)))
             tarjeta.add_widget(MDLabel(text=p[2] if p[2] else " ", halign="center", font_style="Subtitle2", theme_text_color="Secondary", size_hint_y=None, height=dp(20)))
             tarjeta.add_widget(Image(source=p[8], size_hint=(1, None), height=dp(80), fit_mode="contain"))
+            
+            # 4. Contenedor de botones de riego
             layout_riego = MDBoxLayout(orientation="horizontal", spacing=dp(20), adaptive_size=True, pos_hint={"center_x": 0.5})
+            
+            # --- MACETA ---
             area_m = MDAnchorLayout(size_hint=(None, None), size=(dp(50), dp(50)))
-            area_m.add_widget(CircularProgress(value=porc_m, color=[0.2, 0.7, 0.3, 1], size=(dp(46), dp(46))))
-            btn_m = MDIconButton(icon="", size_hint=(None, None), size=(dp(46), dp(46)), on_release=lambda x, p_id=p[0]: self.regar_planta(p_id, "maceta"))
+            area_m.add_widget(CircularProgress(value=porc_m, color=color_m, size=(dp(46), dp(46))))
+
+            # BOTÓN REFORZADO:
+            btn_m = MDIconButton(
+                icon="", 
+                size_hint=(None, None), 
+                size=(dp(50), dp(50)), # Que ocupe todo el círculo
+                on_release=lambda x, p_id=p[0]: self.regar_planta(p_id, "maceta")
+            )
             area_m.add_widget(btn_m)
             area_m.add_widget(MDLabel(text="M", font_style="Caption", halign="center"))
             layout_riego.add_widget(area_m)
+            
+            # --- TUTOR ---
             if p[3] == "si":
                 porc_t = data.calcular_barra_vida(p[7], p[4])
+                color_t = [0.6, 0.4, 0.2, 1] if porc_t >= 0 else [1, 0, 0, 1]
                 area_t = MDAnchorLayout(size_hint=(None, None), size=(dp(50), dp(50)))
-                area_t.add_widget(CircularProgress(value=porc_t, color=[0.6, 0.4, 0.2, 1], size=(dp(46), dp(46))))
-                btn_t = MDIconButton(icon="", size_hint=(None, None), size=(dp(46), dp(46)), on_release=lambda x, p_id=p[0]: self.regar_planta(p_id, "tutor"))
+                area_t.add_widget(CircularProgress(value=porc_t, color=color_t, size=(dp(46), dp(46))))
+                btn_t = MDIconButton(
+                    icon="", size_hint=(None, None), size=(dp(46), dp(46)), 
+                    on_release=lambda x, p_id=p[0]: self.regar_planta(p_id, "tutor")
+                )
                 area_t.add_widget(btn_t)
                 area_t.add_widget(MDLabel(text="T", font_style="Caption", halign="center"))
                 layout_riego.add_widget(area_t)
+
             tarjeta.add_widget(layout_riego)
             self.contenedor_grid.add_widget(tarjeta)
 
@@ -283,7 +331,7 @@ class RegandoAndo(MDApp):
         self.cargar_inventario()
 
     def regar_planta(self, plant_id, tipo):
-        fecha = datetime.now().strftime('%Y-%m-%d')
+        fecha = datetime.now().strftime('%Y-%m-%d %H:%M')
         if tipo == "maceta": data.update_last_watered_m(plant_id, fecha)
         else: data.update_last_watered_t(plant_id, fecha)
         self.cargar_inventario()
@@ -299,3 +347,53 @@ class RegandoAndo(MDApp):
                 MDRaisedButton(text="SÍ", on_release=lambda x: (data.delete_plant(p_id), self.dialogo.dismiss(), self.cargar_inventario()))
             ])
             self.dialogo.open()
+
+    def abrir_editor(self, planta_id):
+        p = data.get_plant_by_id(planta_id)
+        if not p: return
+
+        self.planta_id_actual = planta_id 
+        self.imagen_seleccionada = p[8] # image_path es el índice 8
+
+        self.generar_layout_formulario()
+        
+        # Llenamos los campos con los índices correctos de la tabla
+        self.img_preview.source = p[8]
+        self.tf_nombre.text = str(p[1])   # name
+        self.tf_especie.text = str(p[2])  # species
+        self.tf_freq_m.text = str(p[5])   # irri_frequency
+        self.tf_fecha_m.text = str(p[6])  # last_watered
+        
+        self.switch_tutor.active = True if p[3] == "si" else False
+        self.tf_freq_t.text = str(p[4])   # irri_tutor
+        self.tf_fecha_t.text = str(p[7])  # last_tutor_watered
+
+        # 4. Abrimos el diálogo pero con título y botón de "ACTUALIZAR"
+        self.dialogo = MDDialog(
+            title="Editar Planta",
+            type="custom",
+            content_cls=self.scroll_formulario,
+            pos_hint={'top': 0.95},
+            buttons=[
+                MDFlatButton(text="CANCELAR", on_release=lambda x: self.dialogo.dismiss()),
+                MDRaisedButton(text="ACTUALIZAR", on_release=self.actualizar_planta)
+            ]
+        )
+        self.dialogo.open()
+
+    def actualizar_planta(self, *args):
+        # Tomamos los valores de los campos
+        nuevo_nombre = self.tf_nombre.text
+        nueva_especie = self.tf_especie.text
+        tiene_tutor = "si" if self.switch_tutor.active else "no"
+        f_t = int(self.tf_freq_t.text) if self.tf_freq_t.text else 0
+        f_m = int(self.tf_freq_m.text) if self.tf_freq_m.text else 7
+        img = self.imagen_seleccionada
+        u_m = self.tf_fecha_m.text
+        u_t = self.tf_fecha_t.text
+
+        # Llamamos a la base de datos
+        data.update_plant_full(self.planta_id_actual, nuevo_nombre, nueva_especie, tiene_tutor, f_t, f_m, img, u_m, u_t)
+        
+        self.dialogo.dismiss()
+        self.cargar_inventario() # Refrescamos la pantalla
