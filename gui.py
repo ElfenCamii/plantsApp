@@ -19,6 +19,7 @@ from kivy.metrics import dp
 from kivy.clock import Clock
 
 import data
+import os
 from components import LongPressCard
 from datetime import datetime
 
@@ -129,12 +130,23 @@ class RegandoAndo(MDApp):
             on_release=self.mostrar_selector_imagenes
         )
         
-        self.tf_nombre = MDTextField(hint_text="Nombre de la planta")
-        self.tf_especie = MDTextField(hint_text="Especie")
-        self.tf_freq_m = MDTextField(hint_text="Frecuencia Maceta (días)", input_filter="int")
+        self.tf_nombre = MDTextField(
+            hint_text="Nombre de la planta",
+            mode="line"
+        )
+        self.tf_especie = MDTextField(
+            hint_text="Especie",
+            mode="line"
+        )
+        self.tf_freq_m = MDTextField(
+            hint_text="Frecuencia Maceta (días)", 
+            input_filter="int",
+            mode="line"
+        )
         self.tf_fecha_m = MDTextField(
             hint_text="Último riego Maceta (AAAA-MM-DD)", 
-            text=datetime.now().strftime('%Y-%m-%d')
+            text=datetime.now().strftime('%Y-%m-%d'),
+            mode="line"
         )
         
         # Fila del Tutor mejorada
@@ -178,6 +190,8 @@ class RegandoAndo(MDApp):
             type="custom", 
             content_cls=self.scroll_formulario, 
             auto_dismiss=False,
+            # ESTO EMPUJA EL DIÁLOGO HACIA ARRIBA
+            pos_hint={'top': 0.95}, 
             buttons=[
                 MDFlatButton(text="CANCELAR", on_release=lambda x: self.dialogo.dismiss()),
                 MDRaisedButton(text="GUARDAR", on_release=self.guardar_planta)
@@ -214,35 +228,40 @@ class RegandoAndo(MDApp):
         self.scroll_formulario.add_widget(self.layout_campos)
 
     def mostrar_selector_imagenes(self, *args):
-        # En lugar de un nuevo diálogo, vaciamos el actual y ponemos el selector
-        self.dialogo.title = "Selecciona Foto"
-        self.scroll_formulario.remove_widget(self.layout_campos)
         
-        grid = MDGridLayout(cols=3, spacing=dp(10), adaptive_height=True, padding=dp(10))
-        for i in range(1, 10):
-            path = f"assets/img_planta_0{i}.png"
-            btn = MDIconButton(icon=path, icon_size=dp(70), on_release=lambda x, p=path: self.seleccionar_foto(p))
-            grid.add_widget(btn)
+        grid = MDGridLayout(cols=2, spacing=dp(15), adaptive_height=True, padding=dp(20))
         
-        self.scroll_formulario.add_widget(grid)
-        # Ocultamos los botones de GUARDAR/CANCELAR temporalmente
-        self.dialogo.buttons = []
+        for i in range(1, 21):
+            path = f"assets/img_planta_{str(i).zfill(2)}.png"
+            
+            # Verificamos si el archivo existe para que la app no explote
+            if os.path.exists(path):
+                btn = MDIconButton(
+                    icon=path, 
+                    icon_size=dp(100), # Tamaño grande para 2 columnas
+                    on_release=lambda x, p=path: self.seleccionar_foto(p)
+                )
+                grid.add_widget(btn)
+
+        self.scroll_selector = MDScrollView(size_hint_y=None, height=dp(400))
+        self.scroll_selector.add_widget(grid)
+
+        self.dialogo_selector = MDDialog(
+            title="Selecciona Foto",
+            type="custom",
+            content_cls=self.scroll_selector,
+            auto_dismiss=True
+        )
+        self.dialogo_selector.open()
 
     def seleccionar_foto(self, path):
         self.imagen_seleccionada = path
-        # Restauramos el formulario
-        self.dialogo.title = "Nueva Planta"
-        self.scroll_formulario.clear_widgets()
-        
-        # Actualizamos la imagen en el preview antes de volver a meter el layout
-        self.img_preview.source = self.imagen_seleccionada
-        self.scroll_formulario.add_widget(self.layout_campos)
-        
-        # Restauramos los botones
-        self.dialogo.buttons = [
-            MDFlatButton(text="CANCELAR", on_release=lambda x: self.dialogo.dismiss()),
-            MDRaisedButton(text="GUARDAR", on_release=self.guardar_planta)
-        ]
+        # Actualizamos la imagen en el formulario principal
+        if hasattr(self, 'img_preview'):
+            self.img_preview.source = path
+        # Cerramos el selector
+        if hasattr(self, 'dialogo_selector'):
+            self.dialogo_selector.dismiss()
 
     def toggle_tutor_field(self, instance, value):
         op = 1 if value else 0
